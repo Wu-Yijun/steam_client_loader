@@ -1,8 +1,4 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use notify::{RecursiveMode, Watcher};
 use setting::Setting;
@@ -13,7 +9,7 @@ mod setting;
 
 use std::sync::mpsc;
 
-use eframe::egui::{self, RichText};
+use eframe::egui;
 
 fn main() {
     let options = eframe::NativeOptions {
@@ -42,6 +38,8 @@ enum AppCmd {
 }
 
 struct MyApp {
+    setting: Setting,
+
     app: AppWindow,
     window_pos: egui::Pos2,
     window_size: egui::Vec2,
@@ -82,7 +80,7 @@ impl eframe::App for MyApp {
             AppWindow::Achievement if self.visiblilty => {
                 if self.time_left <= 0.001 {
                     self.achievement = self.achievements.pop();
-                    self.time_left = 10.0;
+                    self.time_left = self.setting.get_pop_up_time();
                     if !self.achievement.is_none() {
                         if self.achievement.as_ref().unwrap().get {
                             self.sfx.play_get();
@@ -119,12 +117,14 @@ impl MyApp {
         egui_extras::install_image_loaders(&cc.egui_ctx);
         // MyApp::load_fonts(&cc.egui_ctx);
         let setting = setting::Setting::new();
+        setting.print_all_info();
         fonts::load_system_font(&cc.egui_ctx, &setting);
         let (sender, receiver) = mpsc::channel();
         let send_app_achievenemt = Arc::new(Mutex::new(false));
         let watcher =
             Self::file_monitor_start(sender.clone(), Arc::clone(&send_app_achievenemt), &setting);
         Self {
+            setting,
             app: AppWindow::Main,
             window_pos: [0.0, 0.0].into(),
             window_size: [600.0, 400.0].into(),
@@ -158,6 +158,7 @@ impl MyApp {
             ))
             .unwrap();
 
+        let path = achievements.path.clone();
         // Automatically select the best implementation for your platform.
         let mut watcher = notify::recommended_watcher(move |res| match res {
             Ok(_) => {
@@ -180,6 +181,7 @@ impl MyApp {
                                     image: image.as_os_str().to_str().unwrap().into(),
                                 }))
                                 .unwrap();
+                            println!("File Updated!");
                         }
                     }
                     // lose achievement
@@ -200,6 +202,7 @@ impl MyApp {
                                     image: image.as_os_str().to_str().unwrap().into(),
                                 }))
                                 .unwrap();
+                            println!("File Updated!");
                         }
                     }
                 }
@@ -218,45 +221,24 @@ impl MyApp {
 
         // Add a path to be watched. All files and directories at that path and
         // below will be monitored for changes.
-        watcher
-            .watch(
-                &PathBuf::from(setting.get_achievement_json_path()),
-                RecursiveMode::Recursive,
-            )
-            .unwrap();
+        watcher.watch(&path, RecursiveMode::Recursive).unwrap();
         Some(watcher)
     }
     fn main_window(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top("Steam Achievements Reminder")
             .min_height(60.0)
             .show(ctx, |ui| {
-                // ui.with_layout(egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
-                //     // 按钮代码
-                //     let btn_run = RichText::new("⬤ Run Manager!")
-                //     .color(egui::Color32::DARK_GREEN)
-                //     .size(30.0);
-                // if ui.button(btn_run).clicked() {
-                //     self.to_achievement_window(ctx);
-                // }
-                // let btn_exit = RichText::new("⬤ Close!")
-                //     .color(egui::Color32::RED)
-                //     .size(30.0);
-                // if ui.button(btn_exit).clicked() {
-                //     self.sender.send(AppCmd::Close).unwrap();
-                // }
-
-                // });
                 ui.allocate_space([10.0, 10.0].into());
                 ui.horizontal(|ui| {
                     ui.allocate_space([10.0, 10.0].into());
-                    let btn_run = RichText::new("⬤ Run Manager!")
+                    let btn_run = egui::RichText::new("⬤ Run Manager!")
                         .color(egui::Color32::DARK_GREEN)
                         .size(30.0);
                     if ui.button(btn_run).clicked() {
                         self.to_achievement_window(ctx);
                     }
                     ui.allocate_space([20.0, 10.0].into());
-                    let btn_exit = RichText::new("⬤ Close!")
+                    let btn_exit = egui::RichText::new("⬤ Close!")
                         .color(egui::Color32::RED)
                         .size(30.0);
                     if ui.button(btn_exit).clicked() {
@@ -321,11 +303,33 @@ impl MyApp {
                         .fit_to_exact_size([height, height].into())
                         .rounding(height / 10.0),
                 );
-                ui.vertical_centered(|ui| {
-                    ui.heading(&ac.header);
-                    ui.label(&ac.text_header);
-                    ui.label(&ac.text);
-                    ui.label(&ac.note);
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.label(egui::RichText::new(&ac.header).size(18.0).color(if ac.get {
+                            egui::Color32::DARK_GREEN
+                        } else {
+                            egui::Color32::ORANGE
+                        }));
+                        ui.separator();
+                        ui.label(
+                            egui::RichText::new(&ac.text_header)
+                                .text_style(egui::TextStyle::Button)
+                                .size(18.0)
+                                .color(egui::Color32::DARK_BLUE),
+                        );
+                        ui.label(
+                            egui::RichText::new(&ac.text)
+                                .size(14.0)
+                                .color(egui::Color32::GRAY),
+                        );
+                        ui.separator();
+                        ui.label(
+                            egui::RichText::new(&ac.note)
+                                .size(10.0)
+                                .color(egui::Color32::GRAY)
+                                .weak(),
+                        );
+                    });
                 });
             });
             if ui.input(|r| r.pointer.primary_clicked()) {
@@ -445,19 +449,21 @@ impl MyApp {
                             }
                         });
                         row.col(|ui| {
-                            if ac.visiblity {
-                                ui.label(
-                                    egui::RichText::new("✅")
-                                        .size(16.0)
-                                        .color(egui::Color32::GREEN),
-                                );
-                            } else {
-                                ui.label(
-                                    egui::RichText::new("❌")
-                                        .size(16.0)
-                                        .color(egui::Color32::RED),
-                                );
-                            }
+                            ui.centered_and_justified(|ui| {
+                                if ac.visiblity {
+                                    ui.label(
+                                        egui::RichText::new("✅")
+                                            .size(16.0)
+                                            .color(egui::Color32::GREEN),
+                                    );
+                                } else {
+                                    ui.label(
+                                        egui::RichText::new("❌")
+                                            .size(16.0)
+                                            .color(egui::Color32::RED),
+                                    );
+                                }
+                            });
                         });
                         row.col(|ui| {
                             ui.label(egui::RichText::new(&ac.title).heading().size(18.0));

@@ -103,16 +103,13 @@ impl AchievementsRaw {
             .find(|achievement| achievement.name == name)
     }
 
-    const LANGUAGE_LIST: [&'static str; 6] = [
-        "schinese", "tchinese", "chinese", "english", "japanese", "french",
-    ];
     pub fn get_display_name(&self, achievement: &AchievementRaw) -> String {
         for language in &self.languages {
             if let Some(display_name) = achievement.displayName.get(language) {
                 return display_name.clone();
             }
         }
-        for language in Self::LANGUAGE_LIST {
+        for language in Setting::DEFAULT_LANGUAGES {
             if let Some(display_name) = achievement.displayName.get(language) {
                 return display_name.clone();
             }
@@ -125,7 +122,7 @@ impl AchievementsRaw {
                 return description.clone();
             }
         }
-        for language in Self::LANGUAGE_LIST {
+        for language in Setting::DEFAULT_LANGUAGES {
             if let Some(description) = achievement.description.get(language) {
                 return description.clone();
             }

@@ -1,4 +1,3 @@
-use core::arch;
 use std::fs;
 
 use serde::{Deserialize, Serialize};
@@ -29,14 +28,16 @@ struct Args {
     languages: Option<Vec<String>>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Setting {
     fonts: Option<Vec<String>>,
     languages: Option<Vec<String>>,
     app_data_path: Option<String>,
-    setting_path: Option<String>,
+    setting_dir: Option<String>,
     goldberg_path: Option<String>,
     image_dir: Option<String>,
+
+    pop_up_time: Option<f32>,
 
     #[serde(skip)]
     args: Args,
@@ -59,7 +60,7 @@ impl Setting {
         "新宋体",
     ];
 
-    const DEFAULT_LANGUAGES: [&str; 6] = [
+    pub const DEFAULT_LANGUAGES: [&str; 6] = [
         "schinese", "tchinese", "chinese", "english", "japanese", "french",
     ];
 
@@ -69,8 +70,10 @@ impl Setting {
     const DEFAULT_ACHIEVEMENTS_DATA_PATH: &str = "steam_settings/achievements.json";
     // releative to goldberg_path/Appid
     const DEFAULT_GOLDBERG_NAME: &str = "Goldberg SteamEmu Saves/";
-    const DEFAULT_SETTING_PATH: &str = "achievement_reminder_setting.json";
-    const DEFAULT_ACHIEVEMENTS_PATH: &str = "achievements.json";
+    const DEFAULT_SETTING_NAME: &str = "achievement_reminder_setting.json";
+    const DEFAULT_ACHIEVEMENTS_NAME: &str = "achievements.json";
+
+    const DEFAULT_POP_UP_TIME: f32 = 10.0;
 
     fn get_default_app_data_path() -> String {
         dirs::data_dir()
@@ -87,7 +90,7 @@ impl Setting {
     }
 
     fn get_default_setting_path() -> String {
-        Self::get_default_goldberg_path() + Self::DEFAULT_SETTING_PATH
+        Self::get_default_goldberg_path() + Self::DEFAULT_SETTING_NAME
     }
 
     fn get_setting_path_args(args: &Args) -> String {
@@ -111,16 +114,17 @@ impl Default for Setting {
             ),
             app_data_path: Some(Self::get_default_app_data_path()),
             goldberg_path: Some(Self::get_default_goldberg_path()),
-            setting_path: Some(Self::get_default_setting_path()),
+            setting_dir: Some(Self::get_default_setting_path()),
             image_dir: Some(Self::DEFAULT_IMAGE_DIR.to_string()),
             args: Default::default(),
+            pop_up_time: Some(Self::DEFAULT_POP_UP_TIME),
         }
     }
 }
 
 impl Setting {
     pub fn new() -> Self {
-        let args = Args::try_parse().unwrap_or_default();
+        let args = Args::parse();
         let slf = if let Ok(s) = std::fs::read_to_string(Self::get_setting_path_args(&args)) {
             serde_json::from_str(&s).unwrap_or_default()
         } else {
@@ -134,6 +138,25 @@ impl Setting {
         self
     }
 
+    pub fn print_all_info(&self) {
+        println!("Json File {:#?}", self);
+        println!("Setting.get_fonts {:#?}", self.get_fonts());
+        println!("Setting.get_languages {:#?}", self.get_languages());
+        println!("Setting.get_app_data_path {:#?}", self.get_app_data_path());
+        println!("Setting.get_setting_path {:#?}", self.get_setting_path());
+        println!("Setting.get_image_dir {:#?}", self.get_image_dir());
+        println!("Setting.get_app_id {:#?}", self.get_app_id());
+        println!("Setting.get_goldberg_path {:#?}", self.get_goldberg_path());
+        println!(
+            "Setting.get_achievement_data_path {:#?}",
+            self.get_achievement_data_path()
+        );
+        println!(
+            "Setting.get_achievement_json_path {:#?}",
+            self.get_achievement_json_path()
+        );
+    }
+
     pub fn get_fonts(&self) -> Vec<String> {
         if let Some(fonts) = &self.fonts {
             fonts.clone()
@@ -143,7 +166,9 @@ impl Setting {
     }
 
     pub fn get_languages(&self) -> Vec<String> {
-        if let Some(languages) = &self.languages {
+        if let Some(languages) = &self.args.languages {
+            languages.clone()
+        } else if let Some(languages) = &self.languages {
             languages.clone()
         } else {
             Self::DEFAULT_LANGUAGES
@@ -162,10 +187,10 @@ impl Setting {
     }
 
     pub fn get_setting_path(&self) -> String {
-        if let Some(path) = &self.app_data_path {
+        if let Some(path) = &self.setting_dir {
             path.clone()
         } else {
-            Self::get_default_app_data_path()
+            self.get_goldberg_path() + Self::DEFAULT_SETTING_NAME
         }
     }
 
@@ -189,7 +214,7 @@ impl Setting {
                 return id;
             }
         }
-        if let Ok(s) = fs::read_to_string(Self::DEFAULT_APP_ID_PATH_1) {
+        if let Ok(s) = fs::read_to_string(Self::DEFAULT_APP_ID_PATH_2) {
             if let Ok(id) = s.trim().to_owned().parse() {
                 return id;
             }
@@ -213,15 +238,24 @@ impl Setting {
                 "{}{}/{}",
                 self.get_goldberg_path(),
                 self.get_app_id(),
-                Self::DEFAULT_ACHIEVEMENTS_PATH
+                Self::DEFAULT_ACHIEVEMENTS_NAME
             )
         }
     }
+
     pub fn get_achievement_json_path(&self) -> String {
         if let Some(path) = &self.args.jsondir {
             path.clone()
         } else {
             Self::DEFAULT_ACHIEVEMENTS_DATA_PATH.to_string()
+        }
+    }
+
+    pub fn get_pop_up_time(&self) -> f32 {
+        if let Some(time) = self.pop_up_time {
+            time
+        } else {
+            Self::DEFAULT_POP_UP_TIME
         }
     }
 }
