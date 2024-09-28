@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{
+    collections::HashMap,
+    fs,
+    path::PathBuf,
+    time::{Duration, SystemTime},
+};
 
 use serde::{Deserialize, Serialize};
 type Name = String;
@@ -6,7 +11,7 @@ type Name = String;
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Achievement {
     pub earned: bool,
-    pub earned_time: u32,
+    pub earned_time: u64,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -29,19 +34,30 @@ pub struct AchievementRaw {
 #[derive(Clone, Debug, Default)]
 pub struct AchievementsRaw {
     pub achievements: Vec<AchievementRaw>,
+    pub image_dir: PathBuf,
+    pub languages: Vec<String>,
 }
-
+impl Achievement {
+    pub fn get_time(&self) -> SystemTime {
+        SystemTime::UNIX_EPOCH + Duration::from_secs(self.earned_time)
+    }
+}
 impl Achievements {
-    pub fn new(app_id: String) -> Self {
+    /// Create a new Achievements from the path
+    pub fn new(path: PathBuf) -> Self {
+        println!("Achievements json file path: {:?}", path);
+        let achievements = fs::read_to_string(path.clone()).unwrap();
+        let achievements: HashMap<Name, Achievement> = serde_json::from_str(&achievements).unwrap();
+        Self { achievements, path }
+    }
+    /// Create a new Achievements from the app_id
+    pub fn from(app_id: String) -> Self {
         let mut path = dirs::config_dir().unwrap();
         // let mut path = PathBuf::from(".\\AppData");
         path.push("Goldberg SteamEmu Saves");
         path.push(app_id);
         path.push("achievements.json");
-        println!("{:?}", path);
-        let achievements = fs::read_to_string(path.clone()).unwrap();
-        let achievements: HashMap<Name, Achievement> = serde_json::from_str(&achievements).unwrap();
-        Self { achievements, path }
+        Self::new(path)
     }
     /// update the achievements from the file
     /// return the updated achievements name
@@ -61,14 +77,25 @@ impl Achievements {
         self.achievements = achievements;
         Some(updated)
     }
+
+    pub fn get_time(&self, name: &str) -> Option<SystemTime> {
+        self.achievements.get(name).map(|achievement| achievement.get_time())
+    }
 }
 
 impl AchievementsRaw {
-    /// read achievements from ./steam_settings/achievements.json
-    pub fn new() -> Self {
-        let achievements = fs::read_to_string("./steam_settings/achievements.json").unwrap();
+    /// read achievements from path(./steam_settings/achievements.json)
+    pub fn new(path: PathBuf, image_dir: PathBuf, languages: Vec<String>) -> Self {
+        println!("Achievements data file path: {:?}", path);
+        println!("Achievements images dir: {:?}", image_dir);
+        println!("Achievements languages list: {:?}", image_dir);
+        let achievements = fs::read_to_string(path).unwrap();
         let achievements: Vec<AchievementRaw> = serde_json::from_str(&achievements).unwrap();
-        Self { achievements }
+        Self {
+            achievements,
+            image_dir,
+            languages,
+        }
     }
 
     /// get the achievement by name
@@ -77,80 +104,88 @@ impl AchievementsRaw {
             .iter()
             .find(|achievement| achievement.name == name)
     }
-}
 
-impl AchievementRaw {
     const LANGUAGE_LIST: [&'static str; 6] = [
         "schinese", "tchinese", "chinese", "english", "japanese", "french",
     ];
-    pub fn get_display_name(&self) -> String {
-        for language in Self::LANGUAGE_LIST {
-            if let Some(display_name) = self.displayName.get(language) {
+    pub fn get_display_name(&self, achievement: &AchievementRaw) -> String {
+        for language in &self.languages {
+            if let Some(display_name) = achievement.displayName.get(language) {
                 return display_name.clone();
             }
         }
-        self.displayName.values().next().unwrap().clone()
-    }
-    pub fn get_description(&self) -> String {
         for language in Self::LANGUAGE_LIST {
-            if let Some(description) = self.description.get(language) {
+            if let Some(display_name) = achievement.displayName.get(language) {
+                return display_name.clone();
+            }
+        }
+        achievement.displayName.values().next().unwrap().clone()
+    }
+    pub fn get_description(&self, achievement: &AchievementRaw) -> String {
+        for language in &self.languages {
+            if let Some(description) = achievement.description.get(language) {
                 return description.clone();
             }
         }
-        self.description.values().next().unwrap().clone()
-    }
-    /// search path:
-    /// 1. self.icon
-    /// 2. ./steam_settings/achievement_images/{self.icon}
-    /// 3. ./steam_settings/achievement_images/{self.name}
-    /// Otherwise, return self.icon
-    pub fn get_icon(&self) -> PathBuf {
-        
-        // 1. self.icon
-        let path = PathBuf::from(&self.icon);
-        if path.exists() {
-            return std::path::absolute(path).unwrap();
+        for language in Self::LANGUAGE_LIST {
+            if let Some(description) = achievement.description.get(language) {
+                return description.clone();
+            }
         }
-        // 2. ./steam_settings/achievement_images/{self.icon}
-        let mut path = PathBuf::from("./steam_settings/achievement_images");
-        path.push(&self.icon);
-        if path.exists() {
-            return std::path::absolute(path).unwrap();
-        }
-        // 3. ./steam_settings/achievement_images/{self.name}
-        path.pop();
-        path.push(&self.name);
-        if path.exists() {
-            return std::path::absolute(path).unwrap();
-        }
-        // Otherwise, return self.icon
-        self.icon.clone().into()
+        achievement.description.values().next().unwrap().clone()
     }
 
     /// search path:
-    /// 1. self.icon_gray
-    /// 2. ./steam_settings/achievement_images/{self.icon_gray}
-    /// 3. ./steam_settings/achievement_images/{self.name}
-    /// Otherwise, return self.icon_gray
-    pub fn get_icon_gray(&self) -> PathBuf {
-        // 1. self.icon
-        let path = PathBuf::from(&self.icon_gray);
+    /// 1. achievement.icon
+    /// 2. ./steam_settings/achievement_images/{achievement.icon}
+    /// 3. ./steam_settings/achievement_images/{achievement.name}
+    /// Otherwise, return achievement.icon
+    pub fn get_icon(&self, achievement: &AchievementRaw) -> PathBuf {
+        // 1. achievement.icon
+        let path = PathBuf::from(&achievement.icon);
         if path.exists() {
             return std::path::absolute(path).unwrap();
         }
-        // 2. ./steam_settings/achievement_images/{self.icon}
-        let mut path = PathBuf::from("./steam_settings/achievement_images");
-        path.push(&self.icon_gray);
+        // 2. ./steam_settings/achievement_images/{achievement.icon}
+        let mut path = self.image_dir.to_owned();
+        path.push(&achievement.icon);
         if path.exists() {
             return std::path::absolute(path).unwrap();
         }
-        // 3. ./steam_settings/achievement_images/{self.name}
+        // 3. ./steam_settings/achievement_images/{achievement.name}
         path.pop();
-        path.push(&self.name);
+        path.push(&achievement.name);
         if path.exists() {
             return std::path::absolute(path).unwrap();
         }
-        // Otherwise, return self.icon
-        self.icon_gray.clone().into()
+        // Otherwise, return achievement.icon
+        achievement.icon.clone().into()
+    }
+
+    /// search path:
+    /// 1. achievement.icon_gray
+    /// 2. ./steam_settings/achievement_images/{achievement.icon_gray}
+    /// 3. ./steam_settings/achievement_images/{achievement.name}
+    /// Otherwise, return achievement.icon_gray
+    pub fn get_icon_gray(&self, achievement: &AchievementRaw) -> PathBuf {
+        // 1. achievement.icon
+        let path = PathBuf::from(&achievement.icon_gray);
+        if path.exists() {
+            return std::path::absolute(path).unwrap();
+        }
+        // 2. ./steam_settings/achievement_images/{achievement.icon}
+        let mut path = self.image_dir.to_owned();
+        path.push(&achievement.icon_gray);
+        if path.exists() {
+            return std::path::absolute(path).unwrap();
+        }
+        // 3. ./steam_settings/achievement_images/{achievement.name}
+        path.pop();
+        path.push(&achievement.name);
+        if path.exists() {
+            return std::path::absolute(path).unwrap();
+        }
+        // Otherwise, return achievement.icon
+        achievement.icon_gray.clone().into()
     }
 }
