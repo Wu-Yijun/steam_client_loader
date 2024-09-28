@@ -6,6 +6,8 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
+
+use crate::setting::Setting;
 type Name = String;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -37,32 +39,29 @@ pub struct AchievementsRaw {
     pub image_dir: PathBuf,
     pub languages: Vec<String>,
 }
+
 impl Achievement {
     pub fn get_time(&self) -> SystemTime {
         SystemTime::UNIX_EPOCH + Duration::from_secs(self.earned_time)
     }
+    pub fn get_time_string(&self) -> String {
+        let time = self.get_time();
+        let datetime: chrono::DateTime<chrono::offset::Local> = time.into();
+        datetime.format("%Y-%m-%d %T").to_string()
+    }
 }
 impl Achievements {
     /// Create a new Achievements from the path
-    pub fn new(path: PathBuf) -> Self {
-        println!("Achievements json file path: {:?}", path);
-        let achievements = fs::read_to_string(path.clone()).unwrap();
+    pub fn new(setting: &Setting) -> Self {
+        let path = PathBuf::from(setting.get_achievement_data_path());
+        let achievements = fs::read_to_string(&path).unwrap();
         let achievements: HashMap<Name, Achievement> = serde_json::from_str(&achievements).unwrap();
         Self { achievements, path }
-    }
-    /// Create a new Achievements from the app_id
-    pub fn from(app_id: String) -> Self {
-        let mut path = dirs::config_dir().unwrap();
-        // let mut path = PathBuf::from(".\\AppData");
-        path.push("Goldberg SteamEmu Saves");
-        path.push(app_id);
-        path.push("achievements.json");
-        Self::new(path)
     }
     /// update the achievements from the file
     /// return the updated achievements name
     pub fn update(&mut self) -> Option<(Vec<Name>, Vec<Name>)> {
-        let achievements = fs::read_to_string(self.path.clone()).ok()?;
+        let achievements = fs::read_to_string(&self.path).ok()?;
         let achievements: HashMap<Name, Achievement> = serde_json::from_str(&achievements).ok()?;
         let mut updated = (vec![], vec![]);
         for (name, achievement) in &achievements {
@@ -78,25 +77,22 @@ impl Achievements {
         Some(updated)
     }
 
-    pub fn get_time(&self, name: &str) -> Option<SystemTime> {
+    pub fn get_time(&self, name: &str) -> Option<String> {
         self.achievements
             .get(name)
-            .map(|achievement| achievement.get_time())
+            .map(|achievement| achievement.get_time_string())
     }
 }
 
 impl AchievementsRaw {
     /// read achievements from path(./steam_settings/achievements.json)
-    pub fn new(path: PathBuf, image_dir: PathBuf, languages: Vec<String>) -> Self {
-        println!("Achievements data file path: {:?}", path);
-        println!("Achievements images dir: {:?}", image_dir);
-        println!("Achievements languages list: {:?}", languages);
-        let achievements = fs::read_to_string(path).unwrap();
+    pub fn new(setting: &Setting) -> Self {
+        let achievements = fs::read_to_string(setting.get_achievement_json_path()).unwrap();
         let achievements: Vec<AchievementRaw> = serde_json::from_str(&achievements).unwrap();
         Self {
             achievements,
-            image_dir,
-            languages,
+            image_dir: PathBuf::from(setting.get_image_dir()),
+            languages: setting.get_languages(),
         }
     }
 
@@ -190,4 +186,43 @@ impl AchievementsRaw {
         // Otherwise, return achievement.icon
         achievement.icon_gray.clone().into()
     }
+
+    pub fn get_achievements(&self, achievements: &Achievements) -> Vec<AppAchievement> {
+        let mut res = vec![];
+        for a in &self.achievements {
+            let (state, date) = achievements
+                .achievements
+                .get(&a.name)
+                .and_then(|ac| {
+                    if ac.earned {
+                        Some((ac.earned, ac.get_time_string()))
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default();
+            let icon = self.get_icon(a).as_os_str().to_str().unwrap().to_string();
+            let aa = AppAchievement {
+                id: a.name.clone(),
+                icon: icon,
+                state: state,
+                date: date,
+                title: self.get_display_name(a),
+                description: self.get_description(a),
+                visiblity: a.hidden == "0",
+            };
+            res.push(aa);
+        }
+        res
+    }
+}
+
+pub struct AppAchievement {
+    pub id: String,
+    pub icon: String,
+    pub state: bool,
+    pub date: String,
+    pub title: String,
+    pub description: String,
+    pub visiblity: bool,
 }

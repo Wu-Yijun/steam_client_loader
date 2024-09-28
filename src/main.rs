@@ -1,151 +1,44 @@
-/*
 use std::{
     fs,
     path::{Path, PathBuf},
-    time::{self, Duration},
+    sync::{Arc, Mutex},
 };
 
-use clap::Parser;
 use notify::{RecursiveMode, Watcher};
+use setting::Setting;
 
 mod achievement;
+mod fonts;
+mod setting;
 
-#[derive(Parser, Debug)]
-#[command(version = "0.1.1", about = "A tool for visiualization steam achievements.", long_about = None)]
-struct Args {
-    /// Appid of the game. If not provided, it will read from ColdClientLoader.ini or steam_settings/steam_appid.txt
-    #[arg(short, long)]
-    appid: Option<u32>,
-    /// Directory of the achievements image. If not provided, it will use the default directory steam_settings/achievement_images/.
-    #[arg(short, long)]
-    imagedir: Option<PathBuf>,
-    /// Path of the achievements information. If not provided, it will use the default directory steam_settings/achievements.json.
-    #[arg(short, long)]
-    datadir: Option<PathBuf>,
-    /// Path of the achievements statistical data. If not provided, it will use the default directory %APPDATA%/Goldberg SteamEmu Saves/${AppId}/achievements.json.
-    #[arg(short, long)]
-    jsondir: Option<PathBuf>,
-    /// Default languages list of the achievements. If not provided, it will use the list ["schinese", "tchinese", "chinese", "english", "japanese", "french"].
-    /// The display language will be the first language that can be found in the list.
-    #[arg(short, long, value_parser, num_args = 1.., value_delimiter = ' ')]
-    languages: Option<Vec<String>>,
-}
+use std::sync::mpsc;
 
-fn test() {
-    let args = Args::parse();
-    println!("Command Line {:#?}", args);
-    let app_id = if let Some(app_id) = args.appid {
-        app_id.to_string()
-    } else if fs::exists(Path::new("ColdClientLoader.ini")).unwrap() {
-        let app_id = fs::read_to_string(Path::new("ColdClientLoader.ini")).unwrap();
-        let app_id = ini::macro_safe_read(&app_id)
-            .unwrap()
-            .get("steamclient")
-            .unwrap()
-            .get("appid")
-            .unwrap()
-            .to_owned()
-            .unwrap();
-        app_id
-    } else if fs::exists(Path::new("steam_settings/steam_appid.txt")).unwrap() {
-        let app_id = fs::read_to_string(Path::new("steam_settings/steam_appid.txt")).unwrap();
-        app_id.trim().to_owned()
-    } else {
-        panic!("Appid not found")
-    };
-    println!("app_id: {:#?}", app_id);
-    let achievements_raw: achievement::AchievementsRaw = achievement::AchievementsRaw::new(
-        args.datadir
-            .unwrap_or(PathBuf::from("./steam_settings/achievements.json")),
-        args.imagedir
-            .unwrap_or(PathBuf::from("./steam_settings/achievement_images/")),
-        args.languages.unwrap_or_default(),
-    );
-    let mut achievements = if let Some(path) = args.jsondir {
-        achievement::Achievements::new(path)
-    } else {
-        achievement::Achievements::from(app_id)
-    };
-    let path = achievements.path.clone();
-
-    // Automatically select the best implementation for your platform.
-    let mut watcher = notify::recommended_watcher(move |res| match res {
-        Ok(_) => {
-            println!("File modified!");
-            if let Some(updated) = achievements.update() {
-                // get achievement
-                for name in updated.0 {
-                    if let Some(achievement) = achievements_raw.get(&name) {
-                        let title = achievements_raw.get_display_name(achievement);
-                        let text = achievements_raw.get_description(achievement);
-                        let image = achievements_raw.get_icon(achievement).into_os_string();
-                        let time = achievements.get_time(&name).unwrap();
-                        let datetime: chrono::DateTime<chrono::offset::Local> = time.into();
-                        let time = datetime.format("%Y-%m-%d %T").to_string();
-                        println!("Achievement get: {:#?}", (&title, &text, &time, &image));
-                        // Toast::new(Toast::POWERSHELL_APP_ID)
-                        //     .title(&title)
-                        //     .text1(&text)
-                        //     .text2(&time)
-                        //     .image(Path::new(&image), "Image cannot find")
-                        //     .sound(Some(Sound::Reminder))
-                        //     .duration(winrt_notification::Duration::Short)
-                        //     .show()
-                        //     .expect("unable to toast");
-                    }
-                }
-                // lose achievement
-                for name in updated.1 {
-                    if let Some(achievement) = achievements_raw.get(&name) {
-                        let text1 = achievements_raw.get_display_name(achievement);
-                        let text2 = achievements_raw.get_description(achievement);
-                        let image = achievements_raw.get_icon_gray(achievement).into_os_string();
-                        let time = achievements.get_time(&name).unwrap();
-                        let datetime: chrono::DateTime<chrono::offset::Local> = time.into();
-                        let time = datetime.format("%Y-%m-%d %T").to_string();
-                        println!("Achievement lose: {:#?}", (&text1, &text2, &time, &image));
-                        // Toast::new(Toast::POWERSHELL_APP_ID)
-                        //     .title(">>>--- Lose achievement ---<<<")
-                        //     .text1(&text1)
-                        //     .text2(&format!("{}\n{}", &text2, &time))
-                        //     .image(Path::new(&image), "Image cannot find")
-                        //     .sound(Some(Sound::SMS))
-                        //     .duration(winrt_notification::Duration::Short)
-                        //     .show()
-                        //     .expect("unable to toast");
-                    }
-                }
-            }
-        }
-        Err(e) => println!("watch error: {:?}", e),
-    })
-    .unwrap();
-
-    // Add a path to be watched. All files and directories at that path and
-    // below will be monitored for changes.
-    watcher.watch(&path, RecursiveMode::Recursive).unwrap();
-
-    loop {
-        std::thread::sleep(time::Duration::from_secs(60));
-    }
-}
-*/
-
-use eframe::egui;
+use eframe::egui::{self, RichText};
 
 fn main() {
-    let native_options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_inner_size([1200.0, 800.0]),
+        ..Default::default()
+    };
     eframe::run_native(
         "Steam Achievements Reminder",
-        native_options,
+        options,
         Box::new(|cc| Ok(Box::new(MyApp::new(cc)))),
     )
     .unwrap();
+    println!("Terminate successfully!");
 }
 
+#[derive(PartialEq)]
 enum AppWindow {
     Main,
     Achievement,
+}
+
+enum AppCmd {
+    AddAchievements(AppShownAchievement),
+    UpdateAppAchievement(Vec<achievement::AppAchievement>),
+    Close,
 }
 
 struct MyApp {
@@ -153,19 +46,69 @@ struct MyApp {
     window_pos: egui::Pos2,
     window_size: egui::Vec2,
     title_bar: f32,
+    visiblilty: bool,
 
-    showed: AppShownAchievement,
-
+    achievements: Vec<AppShownAchievement>,
+    achievement: Option<AppShownAchievement>,
+    time_left: f32,
+    start_time: std::time::Instant,
     acheivement_align: egui::Align2,
 
     sfx: SoundEffects,
+
+    sender: mpsc::Sender<AppCmd>,
+    receiver: mpsc::Receiver<AppCmd>,
+    watcher: Option<notify::ReadDirectoryChangesWatcher>,
+    app_achievenemt: Vec<achievement::AppAchievement>,
+    send_app_achievenemt: Arc<Mutex<bool>>,
 }
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.request_repaint_after_secs(1.0);
+        // println!("12345");
+        while let Ok(recv) = self.receiver.try_recv() {
+            match recv {
+                AppCmd::AddAchievements(achievement) => self.add_achievement(ctx, achievement),
+                AppCmd::Close => self.close(ctx),
+                AppCmd::UpdateAppAchievement(vec) => {
+                    self.app_achievenemt = vec;
+                    *self.send_app_achievenemt.lock().unwrap() = false;
+                }
+            }
+        }
         match self.app {
             AppWindow::Main => self.main_window(ctx),
-            AppWindow::Achievement => self.achievement_window(ctx),
+            AppWindow::Achievement if self.visiblilty => {
+                if self.time_left <= 0.001 {
+                    self.achievement = self.achievements.pop();
+                    self.time_left = 10.0;
+                    if !self.achievement.is_none() {
+                        if self.achievement.as_ref().unwrap().get {
+                            self.sfx.play_get();
+                        } else {
+                            self.sfx.play_lose();
+                        }
+                        self.start_time = std::time::Instant::now();
+                    }
+                }
+                if self.achievement.is_none() {
+                    self.time_left = 0.0;
+                    self.hide(ctx);
+                    return;
+                }
+                self.achievement_window(ctx);
+                let end_time = std::time::Instant::now();
+                self.time_left -= (end_time - self.start_time).as_secs_f32();
+                self.start_time = end_time;
+            }
+            AppWindow::Achievement => {
+                if !self.achievements.is_empty() || self.achievement.is_some() {
+                    self.show(ctx);
+                    return;
+                }
+                // println!("Frames:");
+            }
         }
     }
 }
@@ -174,29 +117,155 @@ impl MyApp {
     const ACHIEVEMENT_WINDOW_SIZE: (f32, f32) = (500.0, 150.0);
     fn new(cc: &eframe::CreationContext) -> Self {
         egui_extras::install_image_loaders(&cc.egui_ctx);
+        // MyApp::load_fonts(&cc.egui_ctx);
+        let setting = setting::Setting::new();
+        fonts::load_system_font(&cc.egui_ctx, &setting);
+        let (sender, receiver) = mpsc::channel();
+        let send_app_achievenemt = Arc::new(Mutex::new(false));
+        let watcher =
+            Self::file_monitor_start(sender.clone(), Arc::clone(&send_app_achievenemt), &setting);
         Self {
             app: AppWindow::Main,
             window_pos: [0.0, 0.0].into(),
             window_size: [600.0, 400.0].into(),
             title_bar: 50.0,
-            showed: AppShownAchievement::test(),
+            visiblilty: true,
+            achievements: vec![],
+            achievement: None,
+            time_left: 0.0,
+            start_time: std::time::Instant::now(),
             acheivement_align: egui::Align2::RIGHT_BOTTOM,
             sfx: SoundEffects::new(),
+            sender,
+            receiver,
+            watcher,
+            app_achievenemt: vec![],
+            send_app_achievenemt,
         }
     }
+    fn file_monitor_start(
+        sender: mpsc::Sender<AppCmd>,
+        send_app_achievenemt: Arc<Mutex<bool>>,
+        setting: &Setting,
+    ) -> Option<notify::ReadDirectoryChangesWatcher> {
+        let achievements_raw: achievement::AchievementsRaw =
+            achievement::AchievementsRaw::new(setting);
+        let mut achievements = achievement::Achievements::new(setting);
+
+        sender
+            .send(AppCmd::UpdateAppAchievement(
+                achievements_raw.get_achievements(&achievements),
+            ))
+            .unwrap();
+
+        // Automatically select the best implementation for your platform.
+        let mut watcher = notify::recommended_watcher(move |res| match res {
+            Ok(_) => {
+                if let Some(updated) = achievements.update() {
+                    // get achievement
+                    for name in updated.0 {
+                        if let Some(achievement) = achievements_raw.get(&name) {
+                            let title = achievements_raw.get_display_name(achievement);
+                            let text = achievements_raw.get_description(achievement);
+                            let image = achievements_raw.get_icon(achievement);
+                            let time = achievements.get_time(&name).unwrap();
+                            println!("Achievement get: {:#?}", (&title, &text, &time, &image));
+                            sender
+                                .send(AppCmd::AddAchievements(AppShownAchievement {
+                                    get: true,
+                                    header: "Achievement get".into(),
+                                    text_header: title,
+                                    text,
+                                    note: time,
+                                    image: image.as_os_str().to_str().unwrap().into(),
+                                }))
+                                .unwrap();
+                        }
+                    }
+                    // lose achievement
+                    for name in updated.1 {
+                        if let Some(achievement) = achievements_raw.get(&name) {
+                            let title = achievements_raw.get_display_name(achievement);
+                            let text = achievements_raw.get_description(achievement);
+                            let image = achievements_raw.get_icon_gray(achievement);
+                            let time = achievements.get_time(&name).unwrap();
+                            println!("Achievement lose: {:#?}", (&title, &text, &time, &image));
+                            sender
+                                .send(AppCmd::AddAchievements(AppShownAchievement {
+                                    get: false,
+                                    header: "Achievement lose".into(),
+                                    text_header: title,
+                                    text,
+                                    note: time,
+                                    image: image.as_os_str().to_str().unwrap().into(),
+                                }))
+                                .unwrap();
+                        }
+                    }
+                }
+                if *send_app_achievenemt.lock().unwrap() {
+                    sender
+                        .send(AppCmd::UpdateAppAchievement(
+                            achievements_raw.get_achievements(&achievements),
+                        ))
+                        .unwrap();
+                    *send_app_achievenemt.lock().unwrap() = true;
+                }
+            }
+            Err(e) => println!("watch error: {:?}", e),
+        })
+        .unwrap();
+
+        // Add a path to be watched. All files and directories at that path and
+        // below will be monitored for changes.
+        watcher
+            .watch(
+                &PathBuf::from(setting.get_achievement_json_path()),
+                RecursiveMode::Recursive,
+            )
+            .unwrap();
+        Some(watcher)
+    }
     fn main_window(&mut self, ctx: &egui::Context) {
+        egui::TopBottomPanel::top("Steam Achievements Reminder")
+            .min_height(60.0)
+            .show(ctx, |ui| {
+                // ui.with_layout(egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
+                //     // 按钮代码
+                //     let btn_run = RichText::new("⬤ Run Manager!")
+                //     .color(egui::Color32::DARK_GREEN)
+                //     .size(30.0);
+                // if ui.button(btn_run).clicked() {
+                //     self.to_achievement_window(ctx);
+                // }
+                // let btn_exit = RichText::new("⬤ Close!")
+                //     .color(egui::Color32::RED)
+                //     .size(30.0);
+                // if ui.button(btn_exit).clicked() {
+                //     self.sender.send(AppCmd::Close).unwrap();
+                // }
+
+                // });
+                ui.allocate_space([10.0, 10.0].into());
+                ui.horizontal(|ui| {
+                    ui.allocate_space([10.0, 10.0].into());
+                    let btn_run = RichText::new("⬤ Run Manager!")
+                        .color(egui::Color32::DARK_GREEN)
+                        .size(30.0);
+                    if ui.button(btn_run).clicked() {
+                        self.to_achievement_window(ctx);
+                    }
+                    ui.allocate_space([20.0, 10.0].into());
+                    let btn_exit = RichText::new("⬤ Close!")
+                        .color(egui::Color32::RED)
+                        .size(30.0);
+                    if ui.button(btn_exit).clicked() {
+                        self.sender.send(AppCmd::Close).unwrap();
+                    }
+                });
+            });
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Hello main_window!");
-            ui.label("This is a demo app!");
-            if ui.button("Top").clicked() {}
-            if ui.button("Buttom").clicked() {
-                ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
-                    egui::WindowLevel::AlwaysOnBottom,
-                ));
-            }
-            if ui.button("Achievement").clicked() {
-                self.to_achievement_window(ctx);
-            }
+            self.draw_table(ui);
         });
     }
     fn to_achievement_window(&mut self, ctx: &egui::Context) {
@@ -244,25 +313,19 @@ impl MyApp {
     }
     fn achievement_window(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            // let rect = ui.allocate_rect(
-            //     ui.max_rect(),
-            //     egui::Sense {
-            //         click: true,
-            //         drag: false,
-            //         focusable: false,
-            //     },
-            // );
             let height = ui.max_rect().height();
             ui.horizontal(|ui| {
+                let ac = self.achievement.as_ref().unwrap();
                 ui.add(
-                    egui::Image::new(&format!("file://{}", self.showed.image))
-                        .fit_to_exact_size([height, height / 2.0].into()),
+                    egui::Image::new(&format!("file://{}", ac.image))
+                        .fit_to_exact_size([height, height].into())
+                        .rounding(height / 10.0),
                 );
-                ui.vertical(|ui| {
-                    ui.heading(&self.showed.header);
-                    ui.label(&self.showed.text_header);
-                    ui.label(&self.showed.text);
-                    ui.label(&self.showed.note);
+                ui.vertical_centered(|ui| {
+                    ui.heading(&ac.header);
+                    ui.label(&ac.text_header);
+                    ui.label(&ac.text);
+                    ui.label(&ac.note);
                 });
             });
             if ui.input(|r| r.pointer.primary_clicked()) {
@@ -279,15 +342,150 @@ impl MyApp {
             egui::WindowLevel::Normal,
         ));
     }
-    fn add_achievement(&mut self, ctx: &egui::Context) {
-        match self.app {
-            AppWindow::Main => todo!(),
-            AppWindow::Achievement => (),
+    fn add_achievement(&mut self, ctx: &egui::Context, achievement: AppShownAchievement) {
+        println!("Add achievement: {}", achievement.text_header);
+        self.achievements.push(achievement);
+        if self.app == AppWindow::Achievement && !self.visiblilty {
+            self.show(ctx);
         }
+    }
+    fn hide(&mut self, ctx: &egui::Context) {
+        println!("Hide view");
+        // ctx.send_viewport_cmd(egui::ViewportCommand::Transparent(true));
+        ctx.send_viewport_cmd(egui::ViewportCommand::Decorations(false));
+        ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize([0.0, 0.0].into()));
+        ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(true));
+
+        self.visiblilty = false;
+    }
+    fn show(&mut self, ctx: &egui::Context) {
+        println!("Show view");
+        ctx.send_viewport_cmd(egui::ViewportCommand::Decorations(true));
+        ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(
+            Self::ACHIEVEMENT_WINDOW_SIZE.into(),
+        ));
+        ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(false));
+        self.visiblilty = true;
+    }
+    fn close(&mut self, ctx: &egui::Context) {
+        drop(self.watcher.take());
+        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+    }
+
+    fn draw_table(&self, ui: &mut egui::Ui) {
+        let available_height = ui.available_height();
+        let table = egui_extras::TableBuilder::new(ui)
+            .striped(true)
+            .resizable(true)
+            .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+            .column(egui_extras::Column::auto())
+            .column(egui_extras::Column::auto())
+            .column(egui_extras::Column::auto())
+            .column(egui_extras::Column::auto().clip(true).at_least(60.0))
+            .column(egui_extras::Column::auto())
+            .column(egui_extras::Column::auto().clip(true).at_least(60.0))
+            .column(egui_extras::Column::remainder().clip(true).at_least(60.0))
+            .min_scrolled_height(0.0)
+            .max_scroll_height(available_height)
+            .sense(egui::Sense::click());
+        table
+            .header(20.0, |mut header| {
+                header.col(|ui| {
+                    ui.strong("Id");
+                });
+                header.col(|ui| {
+                    ui.strong("Icon");
+                });
+                header.col(|ui| {
+                    ui.strong("State");
+                });
+                header.col(|ui| {
+                    ui.strong("Date");
+                });
+                header.col(|ui| {
+                    ui.strong("Visibility");
+                });
+                header.col(|ui| {
+                    ui.strong("Title");
+                });
+                header.col(|ui| {
+                    ui.strong("Description");
+                });
+            })
+            .body(|mut body| {
+                for ac in &self.app_achievenemt {
+                    body.row(45.0, |mut row| {
+                        // row.set_selected(self.selection.contains(&row_index));
+                        row.col(|ui| {
+                            ui.label(egui::RichText::new(&ac.id).size(16.0));
+                        });
+                        row.col(|ui| {
+                            ui.add(
+                                egui::Image::new(&format!("file://{}", ac.icon))
+                                    .fit_to_exact_size([40.0, 40.0].into())
+                                    .rounding(5.0),
+                            );
+                        });
+                        row.col(|ui| {
+                            if ac.state {
+                                ui.label(
+                                    egui::RichText::new("Achieved!")
+                                        .size(16.0)
+                                        .color(egui::Color32::DARK_GREEN),
+                                );
+                            } else {
+                                ui.add(egui::Separator::default().horizontal());
+                            }
+                        });
+                        row.col(|ui| {
+                            if ac.date.is_empty() {
+                                ui.add(egui::Separator::default().horizontal());
+                            } else {
+                                ui.label(&ac.date);
+                            }
+                        });
+                        row.col(|ui| {
+                            if ac.visiblity {
+                                ui.label(
+                                    egui::RichText::new("✅")
+                                        .size(16.0)
+                                        .color(egui::Color32::GREEN),
+                                );
+                            } else {
+                                ui.label(
+                                    egui::RichText::new("❌")
+                                        .size(16.0)
+                                        .color(egui::Color32::RED),
+                                );
+                            }
+                        });
+                        row.col(|ui| {
+                            ui.label(egui::RichText::new(&ac.title).heading().size(18.0));
+                        });
+                        row.col(|ui| {
+                            // NOTE: `Label` overrides some of the wrapping settings, e.g. wrap width
+                            if ac.visiblity {
+                                ui.label(
+                                    egui::RichText::new(&ac.description)
+                                        .size(16.0)
+                                        .color(egui::Color32::DARK_GRAY),
+                                );
+                            } else {
+                                ui.label(
+                                    egui::RichText::new(&ac.description)
+                                        .size(16.0)
+                                        .color(egui::Color32::GRAY),
+                                );
+                            }
+                        });
+                    });
+                }
+            });
     }
 }
 
 struct AppShownAchievement {
+    pub get: bool,
     pub header: String,
     pub text_header: String,
     pub text: String,
@@ -295,23 +493,9 @@ struct AppShownAchievement {
     pub image: String,
 }
 
-impl AppShownAchievement {
-    fn test() -> Self {
-        Self {
-            header: "Achievement Get!".to_string(),
-            text_header: "Achievement 1".to_string(),
-            text: "This is a test achievement!".to_string(),
-            note: "Date: 2021-09-01 12:00:00".to_string(),
-            image:
-                "./steam_settings/achievement_images/0cc8155984cfe0580672966b15c475f14458138c.jpg"
-                    .to_string(),
-        }
-    }
-}
-
 struct SoundEffects {
-    stream: rodio::OutputStream,
-    handle: rodio::OutputStreamHandle,
+    _stream: rodio::OutputStream,
+    _handle: rodio::OutputStreamHandle,
     sink: rodio::Sink,
 }
 impl SoundEffects {
@@ -324,17 +508,24 @@ impl SoundEffects {
         include_bytes!("../assets/sound6.mp3"),
     ];
     fn new() -> Self {
-        let (stream, handle) = rodio::OutputStream::try_default().unwrap();
-        let sink = rodio::Sink::try_new(&handle).unwrap();
+        let (_stream, _handle) = rodio::OutputStream::try_default().unwrap();
+        let sink = rodio::Sink::try_new(&_handle).unwrap();
         Self {
-            stream,
-            handle,
+            _stream,
+            _handle,
             sink,
         }
     }
     fn play_get(&self) {
         let source1 = rodio::Decoder::new(std::io::Cursor::new(Self::BYTES[2])).unwrap();
         let source2 = rodio::Decoder::new(std::io::Cursor::new(Self::BYTES[1])).unwrap();
+
+        self.sink.append(source1);
+        self.sink.append(source2);
+    }
+    fn play_lose(&self) {
+        let source1 = rodio::Decoder::new(std::io::Cursor::new(Self::BYTES[0])).unwrap();
+        let source2 = rodio::Decoder::new(std::io::Cursor::new(Self::BYTES[3])).unwrap();
 
         self.sink.append(source1);
         self.sink.append(source2);

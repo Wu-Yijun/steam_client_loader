@@ -19,6 +19,8 @@ ini = "1.3.0"
 dirs = "5.0.1"
 chrono = "0.4.38"
 
+font-kit = "0.14.2"
+
 [[bin]]
 name = "achievements_reminder"
 path = "src/main.rs"

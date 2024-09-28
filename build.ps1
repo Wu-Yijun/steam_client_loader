@@ -10,4 +10,4 @@ if ($?) {
 
 cp ./target/release/achievements_reminder.exe ./release/achievements_reminder.exe
 
-Compress-Archive -Path ./release -DestinationPath ./release.zip -Update
+Compress-Archive -Path ./release -DestinationPath ./release/release.zip -Update
