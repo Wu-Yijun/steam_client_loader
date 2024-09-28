@@ -1,4 +1,5 @@
-cargo build --release
+# Hide console window
+cargo rustc --release -- -Clink-args="-Wl,--subsystem,windows"
 
 if ($?) {
     Write-Host "Build succeeded"
@@ -7,6 +8,6 @@ if ($?) {
     exit 1
 }
 
-cp ./target/release/steam_client_loader.exe ./release/achievements_reminder.exe
+cp ./target/release/achievements_reminder.exe ./release/achievements_reminder.exe
 
 Compress-Archive -Path ./release -DestinationPath ./release.zip -Update

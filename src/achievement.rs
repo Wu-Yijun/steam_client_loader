@@ -79,7 +79,9 @@ impl Achievements {
     }
 
     pub fn get_time(&self, name: &str) -> Option<SystemTime> {
-        self.achievements.get(name).map(|achievement| achievement.get_time())
+        self.achievements
+            .get(name)
+            .map(|achievement| achievement.get_time())
     }
 }
 
@@ -88,7 +90,7 @@ impl AchievementsRaw {
     pub fn new(path: PathBuf, image_dir: PathBuf, languages: Vec<String>) -> Self {
         println!("Achievements data file path: {:?}", path);
         println!("Achievements images dir: {:?}", image_dir);
-        println!("Achievements languages list: {:?}", image_dir);
+        println!("Achievements languages list: {:?}", languages);
         let achievements = fs::read_to_string(path).unwrap();
         let achievements: Vec<AchievementRaw> = serde_json::from_str(&achievements).unwrap();
         Self {

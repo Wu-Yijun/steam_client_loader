@@ -4,7 +4,13 @@ version = "0.1.1"
 edition = "2021"
 
 [dependencies]
-winrt-notification = "0.5.1"
+eframe = { version = "0.29.0", features = ["wgpu"] }
+egui_extras = { version = "0.29.0", features = ["all_loaders"] }
+image = { version = "0.25.2", features = ["jpeg", "png", "ico", "bmp"] } # Add the types you want support for
+
+rodio = "0.19.0"
+
+# winrt-notification = "0.5.1"
 notify = "6.1.1"
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
@@ -12,3 +18,8 @@ clap = { version = "4.5.18", features = ["derive"] }
 ini = "1.3.0"
 dirs = "5.0.1"
 chrono = "0.4.38"
+
+[[bin]]
+name = "achievements_reminder"
+path = "src/main.rs"
+subsystem = "windows"
