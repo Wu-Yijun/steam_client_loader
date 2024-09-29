@@ -116,6 +116,7 @@ impl AchievementsRaw {
         }
         achievement.displayName.values().next().unwrap().clone()
     }
+    
     pub fn get_description(&self, achievement: &AchievementRaw) -> String {
         for language in &self.languages {
             if let Some(description) = achievement.description.get(language) {
@@ -206,7 +207,7 @@ impl AchievementsRaw {
                 date: date,
                 title: self.get_display_name(a),
                 description: self.get_description(a),
-                visiblity: a.hidden == "0",
+                visibility: a.hidden == "0",
             };
             res.push(aa);
         }
@@ -214,12 +215,20 @@ impl AchievementsRaw {
     }
 }
 
+#[derive(Debug)]
 pub struct AppAchievement {
+    /// Achievement Id, like '81001' in Black Myth
     pub id: String,
+    /// Achievement Icon Path
     pub icon: String,
+    /// Achievement State, true for earned, false for not earned
     pub state: bool,
+    /// Achievement Earned Date, like '2021-08-19 12:00:00', empty for not earned
     pub date: String,
+    /// Achievement Title
     pub title: String,
+    /// Achievement Description
     pub description: String,
-    pub visiblity: bool,
+    /// Achievement Visiblity, true for visible, false for hidden
+    pub visibility: bool,
 }

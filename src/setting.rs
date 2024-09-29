@@ -38,6 +38,7 @@ pub struct Setting {
     image_dir: Option<String>,
 
     pop_up_time: Option<f32>,
+    achievement_window_size: Option<(f32, f32)>,
 
     #[serde(skip)]
     args: Args,
@@ -74,15 +75,17 @@ impl Setting {
     const DEFAULT_ACHIEVEMENTS_NAME: &str = "achievements.json";
 
     const DEFAULT_POP_UP_TIME: f32 = 10.0;
+    const DEFAULT_ACHIEVEMENT_WINDOW_SIZE: (f32, f32) = (500.0, 150.0);
 
     fn get_default_app_data_path() -> String {
-        dirs::data_dir()
-            .unwrap()
-            .as_os_str()
-            .to_str()
-            .unwrap()
-            .to_string()
-            + "/"
+        // dirs::data_dir()
+        //     .unwrap()
+        //     .as_os_str()
+        //     .to_str()
+        //     .unwrap()
+        //     .to_string()
+        //     + "/"
+        "AppData/".into()
     }
 
     fn get_default_goldberg_path() -> String {
@@ -118,6 +121,7 @@ impl Default for Setting {
             image_dir: Some(Self::DEFAULT_IMAGE_DIR.to_string()),
             args: Default::default(),
             pop_up_time: Some(Self::DEFAULT_POP_UP_TIME),
+            achievement_window_size: Some(Self::DEFAULT_ACHIEVEMENT_WINDOW_SIZE),
         }
     }
 }
@@ -258,4 +262,29 @@ impl Setting {
             Self::DEFAULT_POP_UP_TIME
         }
     }
+
+    pub fn get_achievement_window_size(&self) -> (f32, f32) {
+        if let Some(size) = self.achievement_window_size {
+            size
+        } else {
+            Self::DEFAULT_ACHIEVEMENT_WINDOW_SIZE
+        }
+    }
+}
+
+#[test]
+fn write_sample_setting() {
+    let set = Setting::default();
+    let mut j = serde_json::to_value(&set).unwrap();
+    j["NOTES"] = serde_json::to_value((
+        "Examlple setting.",
+        "You should put it under 'AppData/Roaming/Goldberg SteamEmu Saves/achievement_reminder_setting.json'",
+        "Every entries below control a behavior of the program, as its name shows.",
+        "You can add, modify, and delete any of it as you want."
+    )).unwrap();
+    std::fs::write(
+        Setting::DEFAULT_SETTING_NAME,
+        serde_json::to_string_pretty(&j).unwrap(),
+    )
+    .unwrap();
 }
