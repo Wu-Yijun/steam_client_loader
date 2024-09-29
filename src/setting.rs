@@ -30,6 +30,7 @@ struct Args {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Setting {
+    darkmode: Option<bool>,
     fonts: Option<Vec<String>>,
     languages: Option<Vec<String>>,
     app_data_path: Option<String>,
@@ -45,10 +46,29 @@ pub struct Setting {
 }
 
 impl Setting {
-    const DEFAULT_FONTS: [&str; 13] = [
+    const DEFAULT_FONTS: [&str; 32] = [
         "Segoe UI",
         "Segoe UI Emoji",
         "Segoe UI Symbol",
+        "Noto Color Emoji",
+        "Noto Mono",
+        "Noto Sans CJK HK",
+        "Noto Sans CJK JP",
+        "Noto Sans CJK KR",
+        "Noto Sans CJK SC",
+        "Noto Sans CJK TC",
+        "Noto Sans Mono",
+        "Noto Sans Mono CJK HK",
+        "Noto Sans Mono CJK JP",
+        "Noto Sans Mono CJK KR",
+        "Noto Sans Mono CJK SC",
+        "Noto Sans Mono CJK TC",
+        "Noto Serif CJK HK",
+        "Noto Serif CJK JP",
+        "Noto Serif CJK KR",
+        "Noto Serif CJK SC",
+        "Noto Serif CJK TC",
+        "Standard Symbols PS",
         "Microsoft Sans Serif",
         "Source Han Sans",
         "Consolas",
@@ -76,6 +96,7 @@ impl Setting {
 
     const DEFAULT_POP_UP_TIME: f32 = 10.0;
     const DEFAULT_ACHIEVEMENT_WINDOW_SIZE: (f32, f32) = (500.0, 150.0);
+    const DEFAULT_DARK_MODE: bool = false;
 
     fn get_default_app_data_path() -> String {
         dirs::data_dir()
@@ -108,6 +129,7 @@ impl Setting {
 impl Default for Setting {
     fn default() -> Self {
         Self {
+            darkmode: Some(Self::DEFAULT_DARK_MODE),
             fonts: Some(Self::DEFAULT_FONTS.iter().map(|s| s.to_string()).collect()),
             languages: Some(
                 Self::DEFAULT_LANGUAGES
@@ -270,6 +292,18 @@ impl Setting {
             Self::DEFAULT_ACHIEVEMENT_WINDOW_SIZE
         }
     }
+
+    pub fn get_dark_mode(&self) -> bool {
+        if let Some(b) = self.darkmode {
+            b
+        } else {
+            Self::DEFAULT_DARK_MODE
+        }
+    }
+
+    pub fn set_dark_mode(&mut self, mode: bool) {
+        self.darkmode = Some(mode);
+    }
 }
 
 #[test]
@@ -278,7 +312,7 @@ fn write_sample_setting() {
     let mut j = serde_json::to_value(&set).unwrap();
     j["NOTES"] = serde_json::to_value((
         "Examlple setting.",
-        "You should put it under 'AppData/Roaming/Goldberg SteamEmu Saves/achievement_reminder_setting.json'",
+        "You should put it under the file 'AppData/Roaming/Goldberg SteamEmu Saves/achievement_reminder_setting.json'",
         "Every entries below control a behavior of the program, as its name shows.",
         "You can add, modify, and delete any of it as you want."
     )).unwrap();

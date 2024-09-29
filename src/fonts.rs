@@ -45,3 +45,9 @@ pub fn load_system_font(ctx: &Context, setting: &Setting) {
     }
     ctx.set_fonts(font);
 }
+
+#[test]
+pub fn print_font_family(){
+    let font_family = SystemSource::new();
+    println!("{:#?}", font_family.all_families());
+}

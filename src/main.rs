@@ -128,6 +128,12 @@ impl MyApp {
         let send_app_achievenemt = Arc::new(Mutex::new(true));
         let watcher =
             Self::file_monitor_start(sender.clone(), Arc::clone(&send_app_achievenemt), &setting);
+
+        cc.egui_ctx.set_visuals(if setting.get_dark_mode() {
+            egui::Visuals::dark()
+        } else {
+            egui::Visuals::light()
+        });
         Self {
             setting,
             app: AppWindow::Main,
@@ -235,7 +241,7 @@ impl MyApp {
                 ui.allocate_space([10.0, 10.0].into());
                 ui.horizontal(|ui| {
                     ui.allocate_space([10.0, 10.0].into());
-                    let btn_run = egui::RichText::new("⬤ Run Manager!")
+                    let btn_run = egui::RichText::new("⬤ Run Reminder!")
                         .color(egui::Color32::DARK_GREEN)
                         .size(30.0);
                     if ui.button(btn_run).clicked() {
@@ -248,6 +254,24 @@ impl MyApp {
                     if ui.button(btn_exit).clicked() {
                         self.sender.send(AppCmd::Close).unwrap();
                     }
+                    ui.allocate_space([20.0, 10.0].into());
+                    if self.setting.get_dark_mode() {
+                        let btn_exit = egui::RichText::new("Go Light Mode!")
+                            .color(egui::Color32::WHITE)
+                            .size(30.0);
+                        if ui.button(btn_exit).clicked() {
+                            self.setting.set_dark_mode(false);
+                            ctx.set_visuals(egui::Visuals::light());
+                        }
+                    } else {
+                        let btn_exit = egui::RichText::new("Go Dark Mode!")
+                            .color(egui::Color32::BLACK)
+                            .size(30.0);
+                        if ui.button(btn_exit).clicked() {
+                            self.setting.set_dark_mode(true);
+                            ctx.set_visuals(egui::Visuals::dark());
+                        }
+                    }
                 });
             });
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -258,11 +282,26 @@ impl MyApp {
     fn to_achievement_window(&mut self, ctx: &egui::Context) {
         println!("--- Convert to achievement window! ---");
         self.app = AppWindow::Achievement;
+        println!("moniter_size: {:#?}", ctx.input(|i| i.viewport().clone()));
         let moniter_size = ctx.input(|i| i.viewport().monitor_size.unwrap());
-        let window_pos = ctx.input(|i| i.viewport().outer_rect.unwrap().min);
-        let window_size = ctx.input(|i| i.viewport().inner_rect.unwrap().size());
-        let title_bar = ctx.input(|i| i.viewport().outer_rect.unwrap().height()) - window_size.y;
+        let window_pos = ctx
+            .input(|i| i.viewport().outer_rect)
+            .and_then(|r| Some(r.min))
+            .unwrap_or(egui::Pos2 { x: 100.0, y: 100.0 });
+        let window_size = ctx
+            .input(|i| i.viewport().inner_rect)
+            .and_then(|r| Some(r.size()))
+            .unwrap_or(egui::Vec2 {
+                x: 1160.0,
+                y: 800.0,
+            });
+        let title_bar = ctx
+            .input(|i| i.viewport().outer_rect)
+            .and_then(|r| Some(r.height()))
+            .unwrap_or(1200.0)
+            - window_size.y;
         let new_pos = moniter_size - self.setting.get_achievement_window_size().into();
+
         println!("moniter_size: {:?}", moniter_size);
         println!("window_pos: {:?}", window_pos);
         println!("window_size: {:?}", window_size);
@@ -320,7 +359,11 @@ impl MyApp {
                             ui.label(
                                 egui::RichText::new("Achievement Gained! CONGRATS!")
                                     .size(18.0)
-                                    .color(egui::Color32::DARK_GREEN),
+                                    .color(if self.setting.get_dark_mode() {
+                                        egui::Color32::LIGHT_GREEN
+                                    } else {
+                                        egui::Color32::DARK_GREEN
+                                    }),
                             );
                         } else {
                             ui.label(
@@ -334,7 +377,11 @@ impl MyApp {
                             egui::RichText::new(&ac.title)
                                 .text_style(egui::TextStyle::Button)
                                 .size(18.0)
-                                .color(egui::Color32::DARK_BLUE),
+                                .color(if self.setting.get_dark_mode() {
+                                    egui::Color32::LIGHT_BLUE
+                                } else {
+                                    egui::Color32::DARK_BLUE
+                                }),
                         );
                         ui.label(
                             egui::RichText::new(&ac.description)

@@ -11,7 +11,7 @@ The `achievements.json` file can be generated automatically using `achievements_
 You can also decide many default values by modifying `%APPDATA%/Goldberg SteamEmu Saves/achievement_reminder_setting.json`.
 
 `Notice:` For the first time, you need to run the game using steamclient_loader first (to create necessary files), and then start the Achievements reminder at any time. If it crashes on luanching, you may need to fix the files mentioned above.
-
+`Notice:` For Linux User, you need to manually position it to a corner of your screen, and manually set 'Always on top' before clicking 'Run Reminder'.
 
 ### Useage Old (v0.1.1):
 

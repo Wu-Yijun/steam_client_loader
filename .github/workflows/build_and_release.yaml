@@ -27,7 +27,7 @@ env:
   RUST_TOOLCHAIN: 'dtolnay'
 
   UPLOAD_TO_GITHUB_RELEASE: 'true'
-  UPLOAD_TO_OLD_RELEASE: 'true'
+  UPLOAD_TO_OLD_RELEASE: 'fales'
 
 jobs:
   prepare:
@@ -50,13 +50,19 @@ jobs:
               repo: context.repo.repo
             });
             console.log(response);
-            return response.data.id;
-          result-encoding: string
+            const datetime = new Date().toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
+            const res = {
+              id: response.data.id,
+              datetime: datetime,
+            };
+            return res;
     outputs:
       BUILD_ON_UBUNTU: ${{ env.BUILD_ON_UBUNTU }}
       BUILD_ON_WINDOWS: ${{ env.BUILD_ON_WINDOWS }}
       BUILD_ON_MAC: ${{ env.BUILD_ON_MAC }}
-      OLD_RELEASE_ID: ${{ steps.GetLatestReleaseID.outputs.result }}
+      OLD_RELEASE_ID: ${{ steps.GetLatestReleaseID.outputs.result.id }}
+      DATA_TIME: ${{ steps.GetLatestReleaseID.outputs.result.datetime }}
+      
 
   build_and_release:
     needs: prepare
@@ -81,6 +87,8 @@ jobs:
               sudo apt-get install -y libasound2-dev portaudio19-dev build-essential libpulse-dev libdbus-1-dev
               cargo build --release
               cp ./target/release/achievements_reminder ./release/achievements_reminder
+              rm ./release/*.dll
+              rm ./release/*.exe
             
           - name: 'Build on MacOS'
             if: ${{ needs.prepare.outputs.BUILD_ON_MAC == 'true' }}
@@ -89,6 +97,8 @@ jobs:
             build_command: |
               cargo build --release
               cp ./target/release/achievements_reminder ./release/achievements_reminder
+              rm ./release/*.dll
+              rm ./release/*.exe
             
     steps:
       - uses: actions/checkout@main
@@ -119,25 +129,24 @@ jobs:
         if: ${{ matrix.os.enabled }}
         uses: actions/upload-artifact@main
         with:
-          name: ${{ env.EXECUTABLE_NAME }}_${{ matrix.os.system }}
+          name: ${{ env.EXECUTABLE_NAME }}_${{ matrix.os.system }}_${{ needs.prepare.outputs.DATA_TIME }}
           path: ./release
-      # - name: Upload Assets to GitHub Release
-      #   if: ${{ matrix.os.enabled && env.UPLOAD_TO_OLD_RELEASE == 'true' }}
-      #   uses: actions/github-script@main
-      #   with:
-      #     script: |
-      #       const fs = require('fs');
-      #       const path = "./release.zip";
-      #       const artifact = fs.readFileSync(path);
-      #       const date = new Date().toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
-      #       const artifactName = `Steam-Achievements-Reminder_${{ matrix.os.system }}_${date}.zip`;
-      #       await github.rest.repos.uploadReleaseAsset({
-      #         owner: context.repo.owner,
-      #         repo: context.repo.repo,
-      #         release_id: '${{ needs.prepare.outputs.OLD_RELEASE_ID }}',
-      #         name: artifactName,
-      #         data: artifact
-      #       });
+      - name: Upload Assets to GitHub Release
+        if: ${{ matrix.os.enabled && env.UPLOAD_TO_OLD_RELEASE == 'true' }}
+        uses: actions/github-script@main
+        with:
+          script: |
+            const fs = require('fs');
+            const path = "./release.zip";
+            const artifact = fs.readFileSync(path);
+            const artifactName = `${{ env.EXECUTABLE_NAME }}_${{ matrix.os.system }}_${{ needs.prepare.outputs.DATA_TIME }}.zip`;
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: '${{ needs.prepare.outputs.OLD_RELEASE_ID }}',
+              name: artifactName,
+              data: artifact
+            });
   conclude:
     needs: build_and_release
     # needs: prepare
