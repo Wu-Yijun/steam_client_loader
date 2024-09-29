@@ -40,7 +40,7 @@ jobs:
       #     echo "BUILD_ON_WINDOWS=${BUILD_ON_WINDOWS}" >> $GITHUB_ENV
       #     echo "BUILD_ON_MAC=${BUILD_ON_MAC}" >> $GITHUB_ENV
       - name: Get Latest Release ID
-        if: ${{ env.UPLOAD_TO_OLD_RELEASE == 'true' }}
+        # if: ${{ env.UPLOAD_TO_OLD_RELEASE == 'true' }}
         id: GetLatestReleaseID
         uses: actions/github-script@main
         with:
