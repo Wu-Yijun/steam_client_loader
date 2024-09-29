@@ -68,16 +68,24 @@ jobs:
           - name: 'Build on Windows'
             system: 'windows'
             enabled: ${{ needs.prepare.outputs.BUILD_ON_WINDOWS == 'true' }}
-            build_command: .github/workflows/build.ps1
+            build_command: |
+              cargo rustc --release -- -Clink-args="-Wl,--subsystem,windows"
+              cp ./target/release/achievements_reminder.exe ./release/achievements_reminder.exe
           - name: 'Build on Linux'
             system: 'ubuntu'
             enabled: ${{ needs.prepare.outputs.BUILD_ON_UBUNTU == 'true' }}
-            build_command: sh .github/workflows/build.ps1
+            build_command: |
+              sudo apt-get install -y libasound2-dev portaudio19-dev build-essential libpulse-dev libdbus-1-dev
+              cargo rustc --release -- -Clink-args="-Wl,--subsystem,windows"
+              cp ./target/release/achievements_reminder ./release/achievements_reminder
+            
           - name: 'Build on MacOS'
             if: ${{ needs.prepare.outputs.BUILD_ON_MAC == 'true' }}
             system: 'macos'
             enabled: ${{ needs.prepare.outputs.BUILD_ON_MAC == 'true' }}
-            build_command: sh .github/workflows/build.ps1
+            build_command: |
+              cargo rustc --release -- -Clink-args="-Wl,--subsystem,windows"
+              cp ./target/release/achievements_reminder ./release/achievements_reminder
             
     steps:
       - uses: actions/checkout@main
@@ -109,7 +117,7 @@ jobs:
         uses: actions/upload-artifact@main
         with:
           name: ${{ env.EXECUTABLE_NAME }}_${{ matrix.os.system }}
-          path: ./release.zip
+          path: ./release
       # - name: Upload Assets to GitHub Release
       #   if: ${{ matrix.os.enabled && env.UPLOAD_TO_OLD_RELEASE == 'true' }}
       #   uses: actions/github-script@main

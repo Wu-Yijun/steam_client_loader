@@ -57,7 +57,7 @@ struct MyApp {
 
     sender: mpsc::Sender<AppCmd>,
     receiver: mpsc::Receiver<AppCmd>,
-    watcher: Option<notify::ReadDirectoryChangesWatcher>,
+    watcher: Option<notify::RecommendedWatcher>,
     app_achievenemt: Vec<achievement::AppAchievement>,
     #[allow(unused)]
     send_app_achievenemt: Arc<Mutex<bool>>,
@@ -154,7 +154,7 @@ impl MyApp {
         sender: mpsc::Sender<AppCmd>,
         send_app_achievenemt: Arc<Mutex<bool>>,
         setting: &Setting,
-    ) -> Option<notify::ReadDirectoryChangesWatcher> {
+    ) -> Option<notify::RecommendedWatcher> {
         let achievements_raw: achievement::AchievementsRaw =
             achievement::AchievementsRaw::new(setting);
         let mut achievements = achievement::Achievements::new(setting);
