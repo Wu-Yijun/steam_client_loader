@@ -110,23 +110,23 @@ jobs:
         with:
           name: ${{ env.EXECUTABLE_NAME }}_${{ matrix.os.system }}
           path: ./release.zip
-      - name: Upload Assets to GitHub Release
-        if: ${{ matrix.os.enabled && env.UPLOAD_TO_OLD_RELEASE == 'true' }}
-        uses: actions/github-script@main
-        with:
-          script: |
-            const fs = require('fs');
-            const path = "./release.zip";
-            const artifact = fs.readFileSync(path);
-            const date = new Date().toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
-            const artifactName = `Steam-Achievements-Reminder_${{ matrix.os.system }}_${date}.zip`;
-            await github.rest.repos.uploadReleaseAsset({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: '${{ needs.prepare.outputs.OLD_RELEASE_ID }}',
-              name: artifactName,
-              data: artifact
-            });
+      # - name: Upload Assets to GitHub Release
+      #   if: ${{ matrix.os.enabled && env.UPLOAD_TO_OLD_RELEASE == 'true' }}
+      #   uses: actions/github-script@main
+      #   with:
+      #     script: |
+      #       const fs = require('fs');
+      #       const path = "./release.zip";
+      #       const artifact = fs.readFileSync(path);
+      #       const date = new Date().toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
+      #       const artifactName = `Steam-Achievements-Reminder_${{ matrix.os.system }}_${date}.zip`;
+      #       await github.rest.repos.uploadReleaseAsset({
+      #         owner: context.repo.owner,
+      #         repo: context.repo.repo,
+      #         release_id: '${{ needs.prepare.outputs.OLD_RELEASE_ID }}',
+      #         name: artifactName,
+      #         data: artifact
+      #       });
   conclude:
     needs: build_and_release
     # needs: prepare
