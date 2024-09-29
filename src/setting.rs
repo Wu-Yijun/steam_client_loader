@@ -78,14 +78,14 @@ impl Setting {
     const DEFAULT_ACHIEVEMENT_WINDOW_SIZE: (f32, f32) = (500.0, 150.0);
 
     fn get_default_app_data_path() -> String {
-        // dirs::data_dir()
-        //     .unwrap()
-        //     .as_os_str()
-        //     .to_str()
-        //     .unwrap()
-        //     .to_string()
-        //     + "/"
-        "AppData/".into()
+        dirs::data_dir()
+            .unwrap()
+            .as_os_str()
+            .to_str()
+            .unwrap()
+            .to_string()
+            + "/"
+        // "AppData/".into()
     }
 
     fn get_default_goldberg_path() -> String {

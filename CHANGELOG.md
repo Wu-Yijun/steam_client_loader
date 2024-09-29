@@ -7,3 +7,4 @@
 - [x] Add popup window in Achievement List View.
 - [x] Add a setting sample and you can edit it for your own setting.
 - [x] Update Message Logic between threads.
+- [x] Fix Path error for AppData

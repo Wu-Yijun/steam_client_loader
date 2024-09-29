@@ -1,7 +1,7 @@
 {
   "NOTES": [
     "Examlple setting.",
-    "You should put it under folder like 'AppData/Roaming/Goldberg SteamEmu Saves/achievement_reminder_setting.json'",
+    "You should put it under 'AppData/Roaming/Goldberg SteamEmu Saves/achievement_reminder_setting.json'",
     "Every entries below control a behavior of the program, as its name shows.",
     "You can add, modify, and delete any of it as you want."
   ],
@@ -9,7 +9,7 @@
     500.0,
     150.0
   ],
-  "app_data_path": "AppData/",
+  "app_data_path": "C:\\Users\\admin\\AppData\\Roaming/",
   "fonts": [
     "Segoe UI",
     "Segoe UI Emoji",
@@ -25,7 +25,7 @@
     "微软雅黑",
     "新宋体"
   ],
-  "goldberg_path": "AppData/Goldberg SteamEmu Saves/",
+  "goldberg_path": "C:\\Users\\admin\\AppData\\Roaming/Goldberg SteamEmu Saves/",
   "image_dir": "steam_settings/achievement_images/",
   "languages": [
     "schinese",
@@ -36,5 +36,5 @@
     "french"
   ],
   "pop_up_time": 10.0,
-  "setting_dir": "AppData/Goldberg SteamEmu Saves/achievement_reminder_setting.json"
+  "setting_dir": "C:\\Users\\admin\\AppData\\Roaming/Goldberg SteamEmu Saves/achievement_reminder_setting.json"
 }
