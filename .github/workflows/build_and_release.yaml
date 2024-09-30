@@ -40,7 +40,7 @@ jobs:
       #     echo "BUILD_ON_WINDOWS=${BUILD_ON_WINDOWS}" >> $GITHUB_ENV
       #     echo "BUILD_ON_MAC=${BUILD_ON_MAC}" >> $GITHUB_ENV
       - name: Get Latest Release ID
-        # if: ${{ env.UPLOAD_TO_OLD_RELEASE == 'true' }}
+        if: ${{ env.UPLOAD_TO_OLD_RELEASE == 'true' }}
         id: GetLatestReleaseID
         uses: actions/github-script@main
         with:
@@ -50,18 +50,21 @@ jobs:
               repo: context.repo.repo
             });
             console.log(response);
-            const datetime = new Date().toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
-            const res = {
-              id: response.data.id,
-              datetime: datetime,
-            };
-            return res;
+            return response.data.id;
+          result-encoding: string
+            
+      - name: Get date time
+        id: GetDateTime
+        uses: actions/github-script@main
+        with:
+          script: return new Date().toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
+          result-encoding: string
     outputs:
       BUILD_ON_UBUNTU: ${{ env.BUILD_ON_UBUNTU }}
       BUILD_ON_WINDOWS: ${{ env.BUILD_ON_WINDOWS }}
       BUILD_ON_MAC: ${{ env.BUILD_ON_MAC }}
-      OLD_RELEASE_ID: ${{ steps.GetLatestReleaseID.outputs.result.id }}
-      DATA_TIME: ${{ steps.GetLatestReleaseID.outputs.result.datetime }}
+      OLD_RELEASE_ID: ${{ steps.GetLatestReleaseID.outputs.result }}
+      DATE_TIME: ${{ steps.GetDateTime.outputs.result }}
       
 
   build_and_release:
@@ -129,7 +132,7 @@ jobs:
         if: ${{ matrix.os.enabled }}
         uses: actions/upload-artifact@main
         with:
-          name: ${{ env.EXECUTABLE_NAME }}_${{ matrix.os.system }}_${{ needs.prepare.outputs.DATA_TIME }}
+          name: ${{ env.EXECUTABLE_NAME }}_${{ matrix.os.system }}_${{ needs.prepare.outputs.DATE_TIME }}
           path: ./release
       - name: Upload Assets to GitHub Release
         if: ${{ matrix.os.enabled && env.UPLOAD_TO_OLD_RELEASE == 'true' }}
@@ -139,7 +142,7 @@ jobs:
             const fs = require('fs');
             const path = "./release.zip";
             const artifact = fs.readFileSync(path);
-            const artifactName = `${{ env.EXECUTABLE_NAME }}_${{ matrix.os.system }}_${{ needs.prepare.outputs.DATA_TIME }}.zip`;
+            const artifactName = `${{ env.EXECUTABLE_NAME }}_${{ matrix.os.system }}_${{ needs.prepare.outputs.DATE_TIME }}.zip`;
             await github.rest.repos.uploadReleaseAsset({
               owner: context.repo.owner,
               repo: context.repo.repo,
