@@ -16,12 +16,12 @@ env:
   ENABLE_PROGRAM_CHECK: 'false'
 
 
-  BUILD_ON_UBUNTU: 'true'
-  # BUILD_ON_UBUNTU: 'false'
+  # BUILD_ON_UBUNTU: 'true'
+  BUILD_ON_UBUNTU: 'false'
   BUILD_ON_WINDOWS: 'true'
   # BUILD_ON_WINDOWS: 'false'
-  BUILD_ON_MAC: 'true'
-  # BUILD_ON_MAC: 'false'
+  # BUILD_ON_MAC: 'true'
+  BUILD_ON_MAC: 'false'
 
   RUST_BACKTRACE: '1'
   RUST_TOOLCHAIN: 'dtolnay'
@@ -31,7 +31,7 @@ env:
 
 jobs:
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       # - name: Set outputs
       #   id: set_outputs
@@ -153,7 +153,7 @@ jobs:
   conclude:
     needs: build_and_release
     # needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@main
