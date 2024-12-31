@@ -24,4 +24,3 @@ font-kit = "0.14.2"
 [[bin]]
 name = "achievements_reminder"
 path = "src/main.rs"
-subsystem = "windows"

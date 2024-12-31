@@ -6,7 +6,7 @@ on:
 
 env:
   EXECUTABLE_NAME: achievements_reminder
-  EXECUTABLE_CHECK_NAME: cube-infinifold-check
+  EXECUTABLE_CHECK_NAME: achievements_reminder-check
 
   # ENABLE_CARGO_TEST: 'true'
   ENABLE_CARGO_TEST: 'false'
@@ -16,8 +16,8 @@ env:
   ENABLE_PROGRAM_CHECK: 'false'
 
 
-  # BUILD_ON_UBUNTU: 'true'
-  BUILD_ON_UBUNTU: 'false'
+  BUILD_ON_UBUNTU: 'true'
+  # BUILD_ON_UBUNTU: 'false'
   BUILD_ON_WINDOWS: 'true'
   # BUILD_ON_WINDOWS: 'false'
   # BUILD_ON_MAC: 'true'
@@ -69,33 +69,43 @@ jobs:
 
   build_and_release:
     needs: prepare
-    runs-on: ${{ matrix.os.system }}-latest
+    runs-on: ${{ matrix.os.system }}
     timeout-minutes: 60
     strategy:
       matrix:
         os: 
           - name: 'Build on Windows'
-            system: 'windows'
+            system: 'windows-latest'
             enabled: ${{ needs.prepare.outputs.BUILD_ON_WINDOWS == 'true' }}
             build_command: |
-              cargo rustc --release -- -Clink-args="-Wl,--subsystem,windows"
+              cargo rustc --release
               cp ./target/release/achievements_reminder.exe ./release/achievements_reminder_with_console.exe
+              # Hide the console window
+              mv .\src\main.rs .\src\main_with_console.rs
+              '#![windows_subsystem = "windows"]' | Out-File .\src\main.rs -Encoding UTF8
+              Get-Content .\src\main_with_console.rs | Out-File .\src\main.rs -Append -Encoding UTF8
+              # Build a new executable without console
               cargo build --release
               cp ./target/release/achievements_reminder.exe ./release/achievements_reminder.exe
+              # remove linux part
+              rm -r ./release/linux/
             
           - name: 'Build on Linux'
-            system: 'ubuntu'
+            system: 'ubuntu-22.04'
             enabled: ${{ needs.prepare.outputs.BUILD_ON_UBUNTU == 'true' }}
             build_command: |
-              sudo apt-get install -y libasound2-dev portaudio19-dev build-essential libpulse-dev libdbus-1-dev
+              sudo apt-get install -y libasound2-dev portaudio19-dev build-essential libpulse-dev libdbus-1-dev libfontconfig1-dev
               cargo build --release
               cp ./target/release/achievements_reminder ./release/achievements_reminder
+              # copy linux part. remove windows part
+              cp ./release/linux/* ./release/
               rm ./release/*.dll
               rm ./release/*.exe
+              rm -r ./release/linux/
             
           - name: 'Build on MacOS'
             if: ${{ needs.prepare.outputs.BUILD_ON_MAC == 'true' }}
-            system: 'macos'
+            system: 'macos-latest'
             enabled: ${{ needs.prepare.outputs.BUILD_ON_MAC == 'true' }}
             build_command: |
               cargo build --release

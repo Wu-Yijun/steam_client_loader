@@ -13,6 +13,8 @@ You can also decide many default values by modifying `%APPDATA%/Goldberg SteamEm
 `Notice:` For the first time, you need to run the game using steamclient_loader first (to create necessary files), and then start the Achievements reminder at any time. If it crashes on luanching, you may need to fix the files mentioned above.
 `Notice:` For Linux User, you need to manually position it to a corner of your screen, and manually set 'Always on top' before clicking 'Run Reminder'.
 
+> To learn more about Goldberg Emulator and steamclient_loader, you can download the and original build of the emulator project on **[Github: Detanup01/gbe_fork](https://github.com/Detanup01/gbe_fork)**, which may contain more packages with different features and more detailed instructions.
+
 ### Usage Old (v0.1.1):
 
 Just put this executable(achievements_reminder.exe) inside the game folder along with `steamclient_loader.exe` and start it.   

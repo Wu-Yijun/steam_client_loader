@@ -1,15 +1,12 @@
-use std::sync::{Arc, Mutex};
-
+﻿use eframe::egui;
 use notify::{RecursiveMode, Watcher};
 use setting::Setting;
+use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 
 mod achievement;
 mod fonts;
 mod setting;
-
-use std::sync::mpsc;
-
-use eframe::egui;
 
 fn main() {
     let options = eframe::NativeOptions {
